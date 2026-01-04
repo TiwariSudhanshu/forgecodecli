@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import os
 import json
+import re
 
 # 1️⃣ Load environment variables from .env
 load_dotenv()
@@ -15,6 +16,9 @@ client = OpenAI(
 # 3️⃣ SYSTEM PROMPT = RULEBOOK FOR THE AGENT
 SYSTEM_PROMPT = """
 You are an agent that decides what action to take.
+You may take multiple actions to solve the task.
+After each tool result, decide the next best action.
+When the task is complete, choose "answer".
 
 You can choose ONLY one of these actions:
 - "read_file"
@@ -27,6 +31,8 @@ Rules:
 - If the user asks about files, folders, structure, or project layout, choose "list_files"
 - If the user asks to create, write, or save a file, choose "write_file"
 - Otherwise choose "answer"
+-Do NOT repeat the same action with the same arguments.
+
 
 You MUST respond in VALID JSON ONLY.
 Do not add explanations.
@@ -55,7 +61,7 @@ JSON format:
 """
 
 # 4️⃣ Agent brain function
-def think(prompt: str) -> dict:
+def think(messages: list[dict]) -> dict:
     """
     Takes user input and returns a decision as a Python dictionary.
     """
@@ -66,12 +72,9 @@ def think(prompt: str) -> dict:
             {
                 "role": "system",
                 "content": SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": prompt
             }
-        ]
+            
+        ] + messages
     )
 
     # 5️⃣ Extract text response from model
@@ -89,4 +92,9 @@ def think(prompt: str) -> dict:
         cleaned = cleaned[4:].strip()
 
     # 6️⃣ Convert JSON string → Python dict
-    return json.loads(cleaned)
+    match = re.search(r"\{[\s\S]*\}", cleaned)
+    if not match:
+        raise ValueError("No JSON object found in LLM response")
+
+    json_str = match.group(0)
+    return json.loads(json_str)
