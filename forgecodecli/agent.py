@@ -2,18 +2,17 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import os
 import json
-import re
+from json import JSONDecoder
+from openai import RateLimitError
 
-# 1️⃣ Load environment variables from .env
+# Load env
 load_dotenv()
 
-# 2️⃣ Create the LLM client (Gemini via OpenAI-compatible API)
 client = OpenAI(
     api_key=os.getenv("GEMINI_API_KEY"),
     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
 )
 
-# 3️⃣ SYSTEM PROMPT = RULEBOOK FOR THE AGENT
 SYSTEM_PROMPT = """
 You are an agent that decides what action to take.
 You may take multiple actions to solve the task.
@@ -24,34 +23,18 @@ You can choose ONLY one of these actions:
 - "read_file"
 - "list_files"
 - "write_file"
+- "create_dir"
 - "answer"
 
 Rules:
-- If the user asks to read, open, inspect, or check a file, choose "read_file"
-- If the user asks about files, folders, structure, or project layout, choose "list_files"
-- If the user asks to create, write, or save a file, choose "write_file"
-- Otherwise choose "answer"
--Do NOT repeat the same action with the same arguments.
-
+- If the user asks to read/open/inspect a file → read_file
+- If the user asks about files/folders/structure → list_files
+- If the user asks to create/write/save a file → write_file
+- If the user asks to create a directory/folder → create_dir
+- Otherwise → answer
+- Do NOT repeat the same action with the same arguments.
 
 You MUST respond in VALID JSON ONLY.
-Do not add explanations.
-Do not add extra text.
-When using "read_file", args MUST be:
-{
-  "path": "<file_path>"
-}
-When using "list_files", args MUST be:
-{
-  "path": "<directory_path>"
-}
-When using "write_file", args MUST be:
-{
-  "path": "<file_path>",
-    "content": "<file_content>"
-}
-DO NOT use keys like "file_path", "filename", or "file".
-ONLY use "path".
 
 JSON format:
 {
@@ -60,41 +43,48 @@ JSON format:
 }
 """
 
-# 4️⃣ Agent brain function
 def think(messages: list[dict]) -> dict:
-    """
-    Takes user input and returns a decision as a Python dictionary.
-    """
-
-    response = client.chat.completions.create(
+    try:
+      response = client.chat.completions.create(
         model="gemini-2.5-flash",
-        messages=[
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            }
-            
-        ] + messages
+        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages
     )
+    except RateLimitError as e:
+      return {
+        "action": "answer",
+        "args": {
+            "text": "⚠️ Rate limit hit. Please wait a few seconds and try again."
+        }
+    }
+    except Exception as e:
+      return {
+        "action": "answer",
+        "args": {
+            "text": f"❌ LLM error: {str(e)}"
+        }
+    }
 
-    # 5️⃣ Extract text response from model
+
     content = response.choices[0].message.content
     cleaned = content.strip()
 
-    # if cleaned.startswith("```"):
-    #     cleaned = cleaned.split("```")[1]
-        
+    # Strip markdown fences
     if cleaned.startswith("```"):
         cleaned = cleaned.strip("`").strip()
 
-# Remove leading language tag like "json"
+    # Strip leading `json`
     if cleaned.lower().startswith("json"):
         cleaned = cleaned[4:].strip()
 
-    # 6️⃣ Convert JSON string → Python dict
-    match = re.search(r"\{[\s\S]*\}", cleaned)
-    if not match:
-        raise ValueError("No JSON object found in LLM response")
+    # Robust JSON extraction (NO REGEX)
+    decoder = JSONDecoder()
+    cleaned = cleaned.lstrip()
 
-    json_str = match.group(0)
-    return json.loads(json_str)
+    if not cleaned.startswith("{"):
+        idx = cleaned.find("{")
+        if idx == -1:
+            raise ValueError("No JSON object found in LLM output")
+        cleaned = cleaned[idx:]
+
+    obj, _ = decoder.raw_decode(cleaned)
+    return obj

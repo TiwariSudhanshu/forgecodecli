@@ -62,3 +62,13 @@ def write_file(path: str, content: str) -> str:
         return f"✅ File written: {path}"
     except Exception:
         return "❌ Failed to write file."
+
+def create_dir(path: str)-> str:
+    if not is_safe_path(path):
+        return "❌ Invalid path."
+    full_path = os.path.join(os.getcwd(), path)
+    try:
+        os.makedirs(full_path, exist_ok=True)
+        return f"✅ Directory created: {path}"
+    except Exception:
+        return "❌ Failed to create directory."
