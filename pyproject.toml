@@ -1,0 +1,11 @@
+[project]
+name = "forgecodecli"
+version = "0.1.0"
+description = "A minimal agentic CLI for forging code"
+authors = [{ name = "Sudhanshu" }]
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["typer"]
+
+[project.scripts]
+forgecodecli = "forgecodecli.cli:main"
