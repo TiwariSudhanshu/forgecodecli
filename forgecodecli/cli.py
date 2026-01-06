@@ -38,7 +38,7 @@ def run(prompt: str = typer.Argument(None)):
                         result = read_file(args.get("path"))
                         print(result)
                         messages.append({"role": "assistant", "content": result})
-
+                    
                     elif action == "list_files":
                         result = list_files(args.get("path", "."))
                         print(result)
@@ -60,10 +60,16 @@ def run(prompt: str = typer.Argument(None)):
                     elif action == "answer":
                         print(args.get("text", ""))
                         answered = True
+                        # Keep only last 10 messages to avoid context overflow
+                        if len(messages) > 20:
+                            messages = messages[-20:]
                         break
 
                 if not answered:
                     print("⚠️ I couldn't complete this request.")
+                    # Keep only last 10 messages to avoid context overflow
+                    if len(messages) > 20:
+                        messages = messages[-20:]
 
         except KeyboardInterrupt:
             print("\nBye")

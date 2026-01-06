@@ -15,32 +15,35 @@ client = OpenAI(
 
 SYSTEM_PROMPT = """
 You are an agent that decides what action to take.
-You may take multiple actions to solve the task.
-After each tool result, decide the next best action.
-When the task is complete, choose "answer".
 
-You can choose ONLY one of these actions:
-- "read_file"
-- "list_files"
-- "write_file"
-- "create_dir"
-- "answer"
+CRITICAL RULES:
+1. Each user request requires AT MOST TWO action that makes a change (write_file, create_dir, read_file, or list_files)
+2. After you have completed all required actions
+(up to the allowed limit), respond with "answer"
+3. Do NOT take multiple write_file or create_dir actions
+4. Do NOT repeat actions
 
-Rules:
-- If the user asks to read/open/inspect a file → read_file
-- If the user asks about files/folders/structure → list_files
-- If the user asks to create/write/save a file → write_file
-- If the user asks to create a directory/folder → create_dir
-- Otherwise → answer
-- Do NOT repeat the same action with the same arguments.
+Actions available:
+- "read_file": read a file
+- "list_files": list directory contents
+- "write_file": write/create a file
+- "create_dir": create a directory
+- "answer": respond to the user (use this after task is complete)
 
-You MUST respond in VALID JSON ONLY.
-
-JSON format:
+RESPONSE FORMAT - You MUST respond ONLY with valid JSON, nothing else:
 {
-  "action": "<action_name>",
-  "args": { ... }
+  "action": "answer",
+  "args": {
+    "text": "Your message here"
+  }
 }
+
+Examples:
+- User: "create file.py with print('hello')" → write_file → ✅ appears → immediately return answer
+- User: "read file.py" → read_file → content appears → immediately return answer
+- User: "what's in src?" → list_files → files appear → immediately return answer
+
+REMEMBER: ✅ means success. See ✅? Send answer immediately. No more actions.
 """
 
 def think(messages: list[dict]) -> dict:
@@ -66,25 +69,46 @@ def think(messages: list[dict]) -> dict:
 
 
     content = response.choices[0].message.content
+    
+    # Handle empty response
+    if content is None or not content.strip():
+        return {
+            "action": "answer",
+            "args": {
+                "text": "Task completed successfully!"
+            }
+        }
+    
     cleaned = content.strip()
 
-    # Strip markdown fences
-    if cleaned.startswith("```"):
-        cleaned = cleaned.strip("`").strip()
-
-    # Strip leading `json`
-    if cleaned.lower().startswith("json"):
-        cleaned = cleaned[4:].strip()
-
-    # Robust JSON extraction (NO REGEX)
+    # Robust JSON extraction
     decoder = JSONDecoder()
-    cleaned = cleaned.lstrip()
-
-    if not cleaned.startswith("{"):
-        idx = cleaned.find("{")
-        if idx == -1:
-            raise ValueError("No JSON object found in LLM output")
-        cleaned = cleaned[idx:]
-
-    obj, _ = decoder.raw_decode(cleaned)
-    return obj
+    
+    # Try to find JSON object in the content
+    idx = cleaned.find("{")
+    if idx == -1:
+        return {
+        "action": "answer",
+        "args": {
+            "text": cleaned
+        }
+    }
+    
+    # Extract from first { onwards
+    cleaned = cleaned[idx:]
+    
+    # Try to decode JSON, handling partial/malformed content
+    try:
+        obj, _ = decoder.raw_decode(cleaned)
+        return obj
+    except json.JSONDecodeError:
+        # If it fails, try to find the end of a valid JSON object
+        # by trying progressively shorter strings from the end
+        for end_pos in range(len(cleaned), idx, -1):
+            try:
+                obj, _ = decoder.raw_decode(cleaned[:end_pos])
+                return obj
+            except json.JSONDecodeError:
+                continue
+        
+        raise ValueError(f"Could not parse JSON from LLM output: {cleaned[:100]}...")
