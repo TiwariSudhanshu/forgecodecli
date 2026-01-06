@@ -1,17 +1,44 @@
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from openai import OpenAI
-import os
+# import os
 import json
 from json import JSONDecoder
 from openai import RateLimitError
+from forgecodecli.config import load_config
+from forgecodecli.secrets import load_api_key
 
 # Load env
-load_dotenv()
+# load_dotenv()
 
-client = OpenAI(
-    api_key=os.getenv("GEMINI_API_KEY"),
-    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-)
+def get_client():
+    config = load_config()
+    api_key = load_api_key()
+
+    if not config:
+        raise RuntimeError(
+            "ForgeCodeCLI is not set up. Run `forgecodecli init`."
+        )
+
+    if not api_key:
+        raise RuntimeError(
+            "API key not found. Run `forgecodecli init` again."
+        )
+
+    provider = config.get("provider")
+
+    if provider == "gemini":
+        return OpenAI(
+            api_key=api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+
+    raise RuntimeError(f"Unsupported provider: {provider}")
+
+
+# client = OpenAI(
+#     api_key=os.getenv("GEMINI_API_KEY"),
+#     base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+# )
 
 SYSTEM_PROMPT = """
 You are an agent that decides what action to take.
@@ -43,13 +70,16 @@ Examples:
 - User: "read file.py" → read_file → content appears → immediately return answer
 - User: "what's in src?" → list_files → files appear → immediately return answer
 
-REMEMBER: ✅ means success. See ✅? Send answer immediately. No more actions.
+
 """
 
 def think(messages: list[dict]) -> dict:
+    config = load_config()
+    model = config.get("model", "gemini-2.5-flash")
     try:
+      client = get_client()
       response = client.chat.completions.create(
-        model="gemini-2.5-flash",
+        model=model,
         messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages
     )
     except RateLimitError as e:
