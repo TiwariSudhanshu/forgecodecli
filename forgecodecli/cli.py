@@ -1,18 +1,22 @@
 import typer
-from forgecodecli.agent import think
-from forgecodecli.tools import read_file, list_files, write_file, create_dir
+import sys
+import os
 import getpass
 
+from forgecodecli.agent import think
+from forgecodecli.tools import read_file, list_files, write_file, create_dir
 from forgecodecli.secrets import save_api_key, delete_api_key
 from forgecodecli.config import save_config, config_exists, delete_config
 
 app = typer.Typer()
+IS_EXE = getattr(sys, "frozen", False)
 
-import os
 
+# ===============================
+# UI
+# ===============================
 def show_logo():
     cwd = os.getcwd()
-
     print(f"""
 ███████╗ ██████╗ ██████╗  ██████╗ ███████╗
 ██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝
@@ -31,180 +35,176 @@ Workspace  : {cwd}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Type natural language commands to manage files.
-(type 'quit' or Ctrl+C to exit)\n
+Type 'help' for commands.
 """)
 
+def wait_before_exit():
+    if IS_EXE and os.name == "nt":
+        try:
+            input("\nPress Enter to close...")
+        except EOFError:
+            pass
+
+
+# ===============================
+# SETUP COMMANDS
+# ===============================
 @app.command()
-def init() :
-    """
-    Initialize ForgeCode CLI configuration
-    """
+def init():
+    """Initialize ForgeCodeCLI"""
     if config_exists():
         typer.echo("ForgeCodeCLI is already set up.")
-        typer.echo("Use `forgecodecli reset` to reconfigure.")
         return
-    
-    typer.echo("Welcome to ForgeCodeCLI ✨")
-    typer.echo("Let's set things up.\n")
+
+    typer.echo("Welcome to ForgeCodeCLI ✨\n")
 
     typer.echo("Select LLM provider:")
     typer.echo("  1) Gemini")
     typer.echo("  2) Exit")
-    
+
     choice = typer.prompt(">")
     if choice != "1":
-        typer.echo("Exiting setup.")
+        typer.echo("Setup cancelled.")
         return
-    
-    api_key = getpass.getpass("Enter your Gemini API Key: ")
-    if not api_key.strip():
-        typer.echo("API Key cannot be empty. Exiting setup.")
+
+    api_key = getpass.getpass("Enter your Gemini API Key: ").strip()
+    if not api_key:
+        typer.echo("API Key cannot be empty.")
         return
+
     save_api_key(api_key)
-    
-    config = {
+    save_config({
         "provider": "gemini",
         "model": "gemini-2.5-flash"
-    }
-    
-    save_config(config)
-    
-    typer.echo("\n✓ API key saved securely")
-    typer.echo("✓ Provider set to Gemini")
-    typer.echo("✓ Model set to gemini-2.5-flash")
-    typer.echo("\nSetup complete.")
+    })
+
+    typer.echo("\n✓ Setup complete")
     typer.echo("Run `forgecodecli` to start.")
-    
+
+
 @app.command()
 def reset():
-    """
-    Reset ForgeCodeCLI configuration and API key
-    """
+    """Reset configuration"""
     if not config_exists():
         typer.echo("ForgeCodeCLI is not set up.")
         return
 
-    typer.echo(
-        "This will remove your ForgeCodeCLI configuration and API key."
-    )
-    confirm = typer.prompt("Are you sure? (y/N)", default="n")
+    if not IS_EXE:
+        confirm = typer.prompt("Are you sure? (y/N)", default="n")
+        if confirm.lower() != "y":
+            typer.echo("Reset cancelled.")
+            return
 
-    if confirm.lower() != "y":
-        typer.echo("Reset cancelled.")
-        return
-
-    try:
-        delete_api_key()
-        typer.echo("✓ API key removed")
-    except Exception:
-        typer.echo("⚠️ No API key found")
-
+    delete_api_key()
     delete_config()
-    typer.echo("✓ Configuration deleted")
-
-    typer.echo("\nForgeCodeCLI has been reset.")
-    typer.echo("Run `forgecodecli init` to set it up again.")
+    typer.echo("✓ Configuration reset")
 
 
+# ===============================
+# ACTION UI
+# ===============================
 def describe_action(action: str, args: dict):
     if action == "read_file":
         print(f"📂 Reading file: {args.get('path')}")
     elif action == "list_files":
-        print(f"📄 Listing files in: {args.get('path', '.')}")
+        print(f"📄 Listing files: {args.get('path', '.')}")
     elif action == "create_dir":
         print(f"📁 Creating directory: {args.get('path')}")
     elif action == "write_file":
         print(f"✍️ Writing file: {args.get('path')}")
 
 
+# ===============================
+# MAIN LOOP
+# ===============================
 @app.callback(invoke_without_command=True)
 def run(ctx: typer.Context):
-    """
-    ForgeCode CLI — agent with actions
-    """
     if ctx.invoked_subcommand is not None:
         return
 
     if not config_exists():
-        typer.echo("ForgeCodeCLI is not set up yet.")
-        typer.echo("Run `forgecodecli init` first.")
-        return
+        print("ForgeCodeCLI is not set up.")
+        print("Starting setup...\n")
+        init()
 
-    # ===============================
-    # INTERACTIVE MODE
-    # ===============================
     show_logo()
     messages = []
 
-    try:
-        while True:
-                user_input = input("forgecode (agent) >  ").strip()
+    while True:
+        try:
+            user_input = input("forgecode > ").strip().lower()
 
-                if user_input.lower() in ("quit", "exit"):
-                    print("Bye")
+            if not user_input:
+                continue
+
+            # -------- INTERNAL COMMANDS --------
+            if user_input == "exit":
+                print("Goodbye.")
+                wait_before_exit()
+                sys.exit(0)
+
+            if user_input == "help":
+                print("""
+Available commands:
+  help   - Show this help
+  reset  - Reset configuration
+  exit   - Exit ForgeCodeCLI
+""")
+                continue
+
+            if user_input == "reset":
+                reset()
+                print("\nRestarting setup...\n")
+                init()
+                messages = []
+                continue
+
+            # -------- SEND TO AGENT --------
+            messages.append({"role": "user", "content": user_input})
+            answered = False
+
+            for _ in range(5):
+                decision = think(messages)
+                action = decision.get("action")
+                args = decision.get("args", {})
+
+                if action == "read_file":
+                    describe_action(action, args)
+                    result = read_file(args.get("path"))
+                elif action == "list_files":
+                    describe_action(action, args)
+                    result = list_files(args.get("path", "."))
+                elif action == "create_dir":
+                    describe_action(action, args)
+                    result = create_dir(args.get("path"))
+                elif action == "write_file":
+                    describe_action(action, args)
+                    result = write_file(args.get("path"), args.get("content"))
+                elif action == "answer":
+                    print(args.get("text", ""))
+                    answered = True
                     break
+                else:
+                    result = "⚠️ Unknown action"
 
-                messages.append({"role": "user", "content": user_input})
-                # print("🤔 Planning actions...")
-                answered = False
+                print(result)
+                messages.append({"role": "assistant", "content": result})
 
-                for _ in range(5):
-                    decision = think(messages)
-                    action = decision.get("action")
-                    args = decision.get("args", {})
+            if not answered:
+                print("⚠️ Could not complete request.")
 
-                    if action == "read_file":
-                        describe_action(action, args)
-                        result = read_file(args.get("path"))
-                        print(result)
-                        messages.append({"role": "assistant", "content": result})
-                    
-                    elif action == "list_files":
-                        describe_action(action, args)
-                        result = list_files(args.get("path", "."))
-                        print(result)
-                        messages.append({"role": "assistant", "content": result})
+            if len(messages) > 20:
+                messages = messages[-20:]
 
-                    elif action == "create_dir":
-                        describe_action(action, args)
-                        result = create_dir(args.get("path"))
-                        print(result)
-                        messages.append({"role": "assistant", "content": result})
-
-                    elif action == "write_file":
-                        describe_action(action, args)
-                        result = write_file(
-                            args.get("path"),
-                            args.get("content")
-                        )
-                        print(result)
-                        messages.append({"role": "assistant", "content": result})
-
-                    elif action == "answer":
-                        print(args.get("text", ""))
-                        answered = True
-                        # Keep only last 10 messages to avoid context overflow
-                        if len(messages) > 20:
-                            messages = messages[-20:]
-                        break
-
-                if not answered:
-                    print("⚠️ I couldn't complete this request.")
-                    print("✅ Done")
-                    # Keep only last 10 messages to avoid context overflow
-                    if len(messages) > 20:
-                        messages = messages[-20:]
-
-    except KeyboardInterrupt:
-            print("\nBye")
-
-    return
+        except KeyboardInterrupt:
+            print("\nInterrupted. Type 'exit' to quit.")
 
 
-
+# ===============================
+# ENTRY
+# ===============================
 def main():
     app()
-
 
 if __name__ == "__main__":
     main()
