@@ -139,25 +139,17 @@ The agent can execute these operations:
 
 All actions are executed safely with validation and error handling.
 
-## Roadmap
+## What's Available
 
-### ✅ v1 (Released)
+- File operations (read, list, create, write, delete, move)
+- Undo functionality - Stack-based operation reversal
+- Git operations - init, add, commit, push, pull, status, log, branch, clone, set_origin
+- Multi-provider support - Gemini, OpenAI, Anthropic, Groq
+- Model selection - Choose specific models per provider
+- Auto-install SDKs - Anthropic SDK installs on demand
+- Proper conversation flow with max actions per request
 
-- Basic file operations (read, list, create, write)
-- Gemini support
-- Interactive CLI
-
-### ✅ v2 (Current - Released)
-
-- **Undo functionality** - Stack-based operation reversal
-- **Delete & move operations** - Full file/directory manipulation
-- **Git operations** - init, add, commit, push, pull, status, log, branch, clone, set_origin
-- **Multi-provider support** - Gemini, OpenAI, Anthropic, Groq
-- **Model selection** - Choose specific models per provider
-- **Auto-install SDKs** - Anthropic SDK installs on demand
-- **Fixed agent loop** - Proper conversation flow with max actions
-
-### 🚀 v3 (Planned)
+## Coming Soon
 
 - Copy files/directories
 - Full undo/redo history (not just last operation)
