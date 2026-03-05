@@ -6,22 +6,18 @@ build-backend = "setuptools.build_meta"
 name = "forgecodecli"
 version = "0.1.0"
 description = "A minimal agentic CLI for forging code"
-authors = [{name = "Sudhanshu"}]
-license = {text = "MIT"}
+authors = [{ name = "Sudhanshu" }]
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = [
-    "typer[all]>=0.9.0",
-    "openai>=1.0.0",
-    "keyring>=24.0.0"
-]
+dependencies = ["typer[all]>=0.9.0", "openai>=1.0.0", "keyring>=24.0.0"]
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "black>=23.0.0",
-    "ruff>=0.1.0"
-]
+dev = ["pytest>=7.0.0", "black>=23.0.0", "ruff>=0.1.0"]
+anthropic = ["anthropic>=0.25.0"]
+
+[tool.setuptools.packages.find]
+include = ["forgecodecli*"]
 
 [project.scripts]
 forgecodecli = "forgecodecli.cli:main"

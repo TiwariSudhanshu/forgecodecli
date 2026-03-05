@@ -1,12 +1,16 @@
 import typer
 import sys
 import os
+import json
 import getpass
+import subprocess
 
+from forgecodecli import path_resolver
 from forgecodecli.agent import think
-from forgecodecli.tools import read_file, list_files, write_file, create_dir
+from forgecodecli.tools import read_file, list_files, write_file, create_dir, delete_file, delete_dir, move_file, move_dir, undo
 from forgecodecli.secrets import save_api_key, delete_api_key
-from forgecodecli.config import save_config, config_exists, delete_config
+from forgecodecli.config import save_config, config_exists, delete_config, load_config
+from forgecodecli.path_resolver import  resolve_path
 
 app = typer.Typer()
 IS_EXE = getattr(sys, "frozen", False)
@@ -15,8 +19,35 @@ IS_EXE = getattr(sys, "frozen", False)
 # ===============================
 # UI
 # ===============================
+PROVIDERS = {
+    "1": {"name": "Google Gemini",     "key": "gemini",    "models": [
+        ("gemini-2.5-flash",  "Fast & free tier"),
+        ("gemini-2.0-flash",  "Latest Gemini"),
+        ("gemini-1.5-pro",    "Most powerful Gemini"),
+    ]},
+    "2": {"name": "OpenAI",            "key": "openai",    "models": [
+        ("gpt-4o",            "Most capable GPT"),
+        ("gpt-4-turbo",       "Fast GPT-4"),
+        ("gpt-3.5-turbo",     "Fast & cheap"),
+    ]},
+    "3": {"name": "Anthropic (Claude)", "key": "anthropic", "models": [
+        ("claude-3-5-sonnet-20241022", "Best balance"),
+        ("claude-3-opus-20240229",     "Most powerful"),
+        ("claude-3-haiku-20240307",    "Fastest & cheapest"),
+    ]},
+    "4": {"name": "Groq",              "key": "groq",      "models": [
+        ("llama-3.3-70b-versatile",  "Best Llama 3.3"),
+        ("mixtral-8x7b-32768",       "Mixtral 8x7B"),
+        ("gemma2-9b-it",             "Google Gemma2"),
+    ]},
+}
+
 def show_logo():
-    cwd = os.getcwd()
+    cwd = path_resolver.CLI_CWD
+    config = load_config()
+    provider_key = config.get("provider", "gemini")
+    model = config.get("model", "gemini-2.5-flash")
+    provider_name = next((v["name"] for v in PROVIDERS.values() if v["key"] == provider_key), provider_key)
     print(f"""
 ███████╗ ██████╗ ██████╗  ██████╗ ███████╗
 ██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝
@@ -30,7 +61,8 @@ Safe • Deterministic • File-aware
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Agent Mode : Code Agent
-Model      : Gemini 2.5 Flash
+Provider   : {provider_name}
+Model      : {model}
 Workspace  : {cwd}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -58,28 +90,56 @@ def init():
 
     typer.echo("Welcome to ForgeCodeCLI ✨\n")
 
-    typer.echo("Select LLM provider:")
-    typer.echo("  1) Gemini")
-    typer.echo("  2) Exit")
+    # ── Step 1: Select Provider ──
+    typer.echo("Select LLM Provider:")
+    for num, p in PROVIDERS.items():
+        typer.echo(f"  {num}) {p['name']}")
+    typer.echo("  5) Exit")
 
-    choice = typer.prompt(">")
-    if choice != "1":
+    provider_choice = typer.prompt(">").strip()
+    if provider_choice not in PROVIDERS:
         typer.echo("Setup cancelled.")
         return
 
-    api_key = getpass.getpass("Enter your Gemini API Key: ").strip()
+    provider = PROVIDERS[provider_choice]
+
+    # ── Step 2: Select Model ──
+    typer.echo(f"\nSelect Model for {provider['name']}:")
+    for i, (model_id, desc) in enumerate(provider["models"], 1):
+        typer.echo(f"  {i}) {model_id}  — {desc}")
+
+    model_choice = typer.prompt(">").strip()
+    try:
+        selected_model = provider["models"][int(model_choice) - 1][0]
+    except (ValueError, IndexError):
+        typer.echo("Invalid choice. Setup cancelled.")
+        return
+
+    # ── Step 3: Enter API Key ──
+    api_key = getpass.getpass(f"\nEnter your {provider['name']} API Key: ").strip()
     if not api_key:
         typer.echo("API Key cannot be empty.")
         return
 
     save_api_key(api_key)
     save_config({
-        "provider": "gemini",
-        "model": "gemini-2.5-flash"
+        "provider": provider["key"],
+        "model": selected_model
     })
 
-    typer.echo("\n✓ Setup complete")
-    typer.echo("Run `forgecodecli` to start.")
+    # Auto-install provider SDK if needed
+    if provider["key"] == "anthropic":
+        typer.echo("\n📦 Installing Anthropic SDK...")
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "anthropic", "-q"])
+            typer.echo("✓ Anthropic SDK installed")
+        except subprocess.CalledProcessError:
+            typer.echo("⚠️  Could not auto-install. Run: pip install anthropic")
+
+    typer.echo(f"\n✓ Setup complete")
+    typer.echo(f"  Provider : {provider['name']}")
+    typer.echo(f"  Model    : {selected_model}")
+    typer.echo("\nRun `forgecodecli` to start.")
 
 
 @app.command()
@@ -112,6 +172,16 @@ def describe_action(action: str, args: dict):
         print(f"📁 Creating directory: {args.get('path')}")
     elif action == "write_file":
         print(f"✍️ Writing file: {args.get('path')}")
+    elif action == "delete_file":
+        print(f"🗑️ Deleting file: {args.get('path')}")
+    elif action == "delete_dir":
+        print(f"🗑️ Deleting directory: {args.get('path')}")
+    elif action == "move_file":
+        print(f"🔄 Moving file: {args.get('src')} → {args.get('dst')}")
+    elif action == "move_dir":
+        print(f"🔄 Moving directory: {args.get('src')} → {args.get('dst')}")
+    elif action == "undo":
+        print(f"↩️ Undoing last operation")
 
 
 # ===============================
@@ -132,8 +202,8 @@ def run(ctx: typer.Context):
 
     while True:
         try:
-            user_input = input("forgecode > ").strip().lower()
-
+            raw_input = input("forgecode > ").strip()
+            user_input = raw_input.lower()
             if not user_input:
                 continue
 
@@ -145,11 +215,17 @@ def run(ctx: typer.Context):
 
             if user_input == "help":
                 print("""
-Available commands:
-  help   - Show this help
-  reset  - Reset configuration
-  exit   - Exit ForgeCodeCLI
-""")
+                Available commands:
+                help   - Show this help
+                undo   - Undo last file operation
+                reset  - Reset configuration
+                exit   - Exit ForgeCodeCLI
+                """)
+                continue
+
+            if user_input == "undo":
+                result = undo()
+                print(result)
                 continue
 
             if user_input == "reset":
@@ -158,28 +234,72 @@ Available commands:
                 init()
                 messages = []
                 continue
-
+            
+            if user_input.startswith(("cd ", "navigate ", "go to ")):
+                target = raw_input.split(" ",1)[1]
+                new_path = resolve_path(target)
+                
+                if os.path.isdir(new_path):
+                    path_resolver.CLI_CWD = new_path
+                    print(f"{path_resolver.CLI_CWD} > ")
+                else:
+                    print("❌ Directory does not exist.")
+                continue
             # -------- SEND TO AGENT --------
-            messages.append({"role": "user", "content": user_input})
+            messages.append({"role": "user", "content": raw_input})
             answered = False
+            actions_taken = 0
+            MAX_ACTIONS = 2
 
-            for _ in range(5):
+            for _ in range(MAX_ACTIONS + 2):
+                # If action limit hit, force agent to answer
+                if actions_taken >= MAX_ACTIONS:
+                    messages.append({"role": "user", "content": "[System]: You have completed the required actions. Now respond with the 'answer' action only."})
+
                 decision = think(messages)
                 action = decision.get("action")
                 args = decision.get("args", {})
 
+                # Append agent's decision as assistant message
+                messages.append({"role": "assistant", "content": json.dumps(decision)})
+
                 if action == "read_file":
                     describe_action(action, args)
-                    result = read_file(args.get("path"))
+                    real_path = resolve_path(args.get("path"))
+                    result = read_file(real_path)
                 elif action == "list_files":
                     describe_action(action, args)
-                    result = list_files(args.get("path", "."))
+                    real_path = resolve_path(args.get("path", "."))
+                    result = list_files(real_path)
                 elif action == "create_dir":
                     describe_action(action, args)
-                    result = create_dir(args.get("path"))
+                    real_path = resolve_path(args.get("path"))
+                    result = create_dir(real_path)
                 elif action == "write_file":
                     describe_action(action, args)
-                    result = write_file(args.get("path"), args.get("content"))
+                    real_path = resolve_path(args.get("path"))
+                    result = write_file(real_path, args.get("content"))
+                elif action == "delete_file":
+                    describe_action(action, args)
+                    real_path = resolve_path(args.get("path"))
+                    result = delete_file(real_path)
+                elif action == "delete_dir":
+                    describe_action(action, args)
+                    real_path = resolve_path(args.get("path"))
+                    result = delete_dir(real_path)
+                elif action == "move_file":
+                    describe_action(action, args)
+                    src_path = resolve_path(args.get("src"))
+                    dst_path = resolve_path(args.get("dst"))
+                    result = move_file(src_path, dst_path)
+                elif action == "move_dir":
+                    describe_action(action, args)
+                    src_path = resolve_path(args.get("src"))
+                    dst_path = resolve_path(args.get("dst"))
+                    result = move_dir(src_path, dst_path)
+                elif action == "undo":
+                    describe_action(action, args)
+                    result = undo()
                 elif action == "answer":
                     print(args.get("text", ""))
                     answered = True
@@ -187,8 +307,10 @@ Available commands:
                 else:
                     result = "⚠️ Unknown action"
 
+                actions_taken += 1
                 print(result)
-                messages.append({"role": "assistant", "content": result})
+                # Append tool result as user message so agent knows what happened
+                messages.append({"role": "user", "content": f"[Tool result]: {result}"})
 
             if not answered:
                 print("⚠️ Could not complete request.")
