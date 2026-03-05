@@ -8,6 +8,10 @@ import subprocess
 from forgecodecli import path_resolver
 from forgecodecli.agent import think
 from forgecodecli.tools import read_file, list_files, write_file, create_dir, delete_file, delete_dir, move_file, move_dir, undo
+from forgecodecli.git_tools import (
+    git_init, git_add, git_commit, git_push, git_set_origin,
+    git_status, git_log, git_branch, git_pull, git_clone
+)
 from forgecodecli.secrets import save_api_key, delete_api_key
 from forgecodecli.config import save_config, config_exists, delete_config, load_config
 from forgecodecli.path_resolver import  resolve_path
@@ -182,6 +186,29 @@ def describe_action(action: str, args: dict):
         print(f"🔄 Moving directory: {args.get('src')} → {args.get('dst')}")
     elif action == "undo":
         print(f"↩️ Undoing last operation")
+    elif action == "git_init":
+        print(f"🔧 Initializing git repository")
+    elif action == "git_add":
+        print(f"📝 Staging files: {args.get('path', '.')}")
+    elif action == "git_commit":
+        print(f"💾 Committing: {args.get('message', '')}")
+    elif action == "git_push":
+        print(f"🚀 Pushing to {args.get('branch', 'main')}")
+    elif action == "git_set_origin":
+        print(f"🔗 Setting origin: {args.get('url', '')}")
+    elif action == "git_status":
+        print(f"📊 Checking git status")
+    elif action == "git_log":
+        print(f"📜 Showing commit history")
+    elif action == "git_branch":
+        if args.get("name"):
+            print(f"🌿 Creating branch: {args.get('name')}")
+        else:
+            print(f"🌿 Listing branches")
+    elif action == "git_pull":
+        print(f"⬇️ Pulling from remote")
+    elif action == "git_clone":
+        print(f"📦 Cloning repository: {args.get('url', '')}")
 
 
 # ===============================
@@ -300,6 +327,36 @@ def run(ctx: typer.Context):
                 elif action == "undo":
                     describe_action(action, args)
                     result = undo()
+                elif action == "git_init":
+                    describe_action(action, args)
+                    result = git_init()
+                elif action == "git_add":
+                    describe_action(action, args)
+                    result = git_add(args.get("path", "."))
+                elif action == "git_commit":
+                    describe_action(action, args)
+                    result = git_commit(args.get("message", ""))
+                elif action == "git_push":
+                    describe_action(action, args)
+                    result = git_push(args.get("branch", "main"))
+                elif action == "git_set_origin":
+                    describe_action(action, args)
+                    result = git_set_origin(args.get("url", ""))
+                elif action == "git_status":
+                    describe_action(action, args)
+                    result = git_status()
+                elif action == "git_log":
+                    describe_action(action, args)
+                    result = git_log(args.get("lines", 5))
+                elif action == "git_branch":
+                    describe_action(action, args)
+                    result = git_branch(args.get("name"))
+                elif action == "git_pull":
+                    describe_action(action, args)
+                    result = git_pull()
+                elif action == "git_clone":
+                    describe_action(action, args)
+                    result = git_clone(args.get("url", ""), args.get("path", "."))
                 elif action == "answer":
                     print(args.get("text", ""))
                     answered = True

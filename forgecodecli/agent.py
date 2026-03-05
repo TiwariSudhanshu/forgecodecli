@@ -6,6 +6,10 @@ from json import JSONDecoder
 from forgecodecli.config import load_config
 from forgecodecli.secrets import load_api_key
 from forgecodecli.tools import undo
+from forgecodecli.git_tools import (
+    git_init, git_add, git_commit, git_push, git_set_origin,
+    git_status, git_log, git_branch, git_pull, git_clone
+)
 
 # Provider base URLs (OpenAI-compatible)
 PROVIDER_BASE_URLS = {
@@ -45,7 +49,7 @@ def get_client():
     return OpenAI(api_key=api_key)
 
 SYSTEM_PROMPT = """
-You are a file management agent that executes file operations. You MUST use the actions below to fulfill user requests. You respond ONLY with valid JSON.
+You are a file and git management agent that executes file and version control operations. You MUST use the actions below to fulfill user requests. You respond ONLY with valid JSON.
 
 ═══════════════════════════════════════════════════════════════
 ABSOLUTE RULES - VIOLATIONS ARE FORBIDDEN
@@ -58,9 +62,10 @@ ABSOLUTE RULES - VIOLATIONS ARE FORBIDDEN
 - When a user asks to delete a folder, you MUST respond with the delete_dir action.
 
 ═══════════════════════════════════════════════════════════════
-ALL 8 AVAILABLE ACTIONS
+ALL AVAILABLE ACTIONS
 ═══════════════════════════════════════════════════════════════
 
+FILE OPERATIONS:
 1. "read_file"   → Read file contents.        Args: {"path": "..."}
 2. "list_files"  → List directory contents.    Args: {"path": "..."}
 3. "write_file"  → Create/write a file.        Args: {"path": "...", "content": "..."}
@@ -70,7 +75,19 @@ ALL 8 AVAILABLE ACTIONS
 7. "move_file"   → Move or rename a file.      Args: {"src": "...", "dst": "..."}
 8. "move_dir"    → Move or rename directory.    Args: {"src": "...", "dst": "..."}
 9. "undo"        → Undo the last operation.    Args: {}
-10. "answer"     → Respond to user with text.  Args: {"text": "..."}
+
+GIT OPERATIONS:
+10. "git_init"       → Initialize git repo.           Args: {}
+11. "git_add"        → Stage files.                    Args: {"path": "." or specific file}
+12. "git_commit"     → Commit changes.                 Args: {"message": "commit message"}
+13. "git_push"       → Push to remote.                 Args: {"branch": "main" (default)}
+14. "git_set_origin" → Set remote URL.                 Args: {"url": "https://..."}
+15. "git_status"     → Show status.                    Args: {}
+16. "git_log"        → Show commit history.            Args: {"lines": 5 (default)}
+17. "git_branch"     → Manage branches.                Args: {"name": "branch_name" (optional)}
+18. "git_pull"       → Pull from remote.               Args: {}
+19. "git_clone"      → Clone repository.               Args: {"url": "...", "path": "." (default)}
+20. "answer"         → Respond to user with text.     Args: {"text": "..."}
 
 ═══════════════════════════════════════════════════════════════
 CRITICAL RULES
@@ -98,35 +115,21 @@ User: "delete love.txt from megha folder"
 → {"action": "delete_file", "args": {"path": "megha/love.txt"}}
 Then: {"action": "answer", "args": {"text": "File megha/love.txt deleted."}}
 
-User: "delete temp.txt"
-→ {"action": "delete_file", "args": {"path": "temp.txt"}}
-Then: {"action": "answer", "args": {"text": "File deleted."}}
+User: "initialize git and commit"
+→ {"action": "git_init", "args": {}}
+Then: {"action": "git_add", "args": {"path": "."}}
+Then: {"action": "git_commit", "args": {"message": "Initial commit"}}
+Then: {"action": "answer", "args": {"text": "Repository initialized and committed."}}
 
-User: "remove the old_data folder"
-→ {"action": "delete_dir", "args": {"path": "old_data"}}
-Then: {"action": "answer", "args": {"text": "Directory removed."}}
-
-User: "read config.py"
-→ {"action": "read_file", "args": {"path": "config.py"}}
-Then: {"action": "answer", "args": {"text": "Here is the config.py file"}}
+User: "push to origin"
+→ {"action": "git_push", "args": {"branch": "main"}}
+Then: {"action": "answer", "args": {"text": "Pushed to origin/main."}}
 
 User: "create hello.py with print('hi')"
 → {"action": "write_file", "args": {"path": "hello.py", "content": "print('hi')"}}
 Then: {"action": "answer", "args": {"text": "File created."}}
 
-User: "move file.py to backup/file.py"
-→ {"action": "move_file", "args": {"src": "file.py", "dst": "backup/file.py"}}
-Then: {"action": "answer", "args": {"text": "File moved."}}
-
-User: "what's in src?"
-→ {"action": "list_files", "args": {"path": "src"}}
-Then: {"action": "answer", "args": {"text": "Here are the files."}}
-
-User: "make a backup folder"
-→ {"action": "create_dir", "args": {"path": "backup"}}
-Then: {"action": "answer", "args": {"text": "Folder created."}}
-
-REMEMBER: You have delete_file, delete_dir, and undo actions. USE THEM when asked to delete or undo.
+REMEMBER: You have delete_file, delete_dir, undo, and git tools. USE THEM when asked.
 """
 
 def think(messages: list[dict]) -> dict:

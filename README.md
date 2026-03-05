@@ -42,6 +42,7 @@ forgecodecli init
 You will be prompted to:
 
 1. **Select LLM Provider**
+
    ```
    1) Google Gemini
    2) OpenAI
@@ -99,6 +100,7 @@ forgecodecli reset
 5. Process repeats until agent provides an answer
 
 **Safety mechanisms:**
+
 - Action limit of 2 per request (prevents infinite loops)
 - Conversation context maintained for agent awareness
 - All operations logged and reversible with `undo`
@@ -108,6 +110,7 @@ forgecodecli reset
 
 The agent can execute these operations:
 
+**File Operations:**
 | Action | Description |
 |--------|-------------|
 | `read_file` | Read and display file contents |
@@ -120,16 +123,32 @@ The agent can execute these operations:
 | `move_dir` | Move or rename directories |
 | `undo` | Reverse the last operation |
 
+**Git Operations:**
+| Action | Description |
+|--------|-------------|
+| `git_init` | Initialize git repository |
+| `git_add` | Stage files for commit |
+| `git_commit` | Commit staged changes |
+| `git_push` | Push to remote repository |
+| `git_set_origin` | Set remote repository URL |
+| `git_status` | Show repository status |
+| `git_log` | View commit history |
+| `git_branch` | Manage branches |
+| `git_pull` | Pull from remote |
+| `git_clone` | Clone a repository |
+
 All actions are executed safely with validation and error handling.
 
 ## Roadmap
 
 ### ✅ v1 (Released)
+
 - Basic file operations (read, list, create, write)
 - Gemini support
 - Interactive CLI
 
-### ✅ v2 (Current)
+### ✅ v2 (Released)
+
 - **Undo functionality** - Stack-based operation reversal
 - **Delete & move operations** - Full file/directory manipulation
 - **Multi-provider support** - Gemini, OpenAI, Anthropic, Groq
@@ -137,12 +156,18 @@ All actions are executed safely with validation and error handling.
 - **Auto-install SDKs** - Anthropic SDK installs on demand
 - **Fixed agent loop** - Proper conversation flow with max actions
 
-### 🚀 v3 (Planned)
+### ✅ v3 (Current)
+
+- **Git operations** - init, add, commit, push, pull, status, log, branch, clone, set_origin
+- **Git workflow support** - Full version control integration
+- **Repository management** - Clone and manage git repos
+
+### 🚀 v4 (Planned)
+
 - Copy files/directories
 - Full undo/redo history (not just last operation)
 - File search capabilities
 - Code generation templates
-- Git integration
 - Batch operations
 - Backup/snapshot functionality
 
@@ -153,9 +178,3 @@ MIT License
 ## Author
 
 Built by Sudhanshu
-
-
-
-
-
-
