@@ -147,22 +147,17 @@ All actions are executed safely with validation and error handling.
 - Gemini support
 - Interactive CLI
 
-### ✅ v2 (Released)
+### ✅ v2 (Current - Released)
 
 - **Undo functionality** - Stack-based operation reversal
 - **Delete & move operations** - Full file/directory manipulation
+- **Git operations** - init, add, commit, push, pull, status, log, branch, clone, set_origin
 - **Multi-provider support** - Gemini, OpenAI, Anthropic, Groq
 - **Model selection** - Choose specific models per provider
 - **Auto-install SDKs** - Anthropic SDK installs on demand
 - **Fixed agent loop** - Proper conversation flow with max actions
 
-### ✅ v3 (Current)
-
-- **Git operations** - init, add, commit, push, pull, status, log, branch, clone, set_origin
-- **Git workflow support** - Full version control integration
-- **Repository management** - Clone and manage git repos
-
-### 🚀 v4 (Planned)
+### 🚀 v3 (Planned)
 
 - Copy files/directories
 - Full undo/redo history (not just last operation)

@@ -1,34 +1,27 @@
 # ForgeCodeCLI Release History
 
-## v3.0.0 (Current) - March 5, 2026
+## v2.0.0 (Current - Released) - March 5, 2026
 
 ### ✨ New Features
-- **Git Operations** - Full version control support
-  - `git_init` - Initialize repositories
-  - `git_add` - Stage files
-  - `git_commit` - Commit changes
-  - `git_push` - Push to remote
-  - `git_pull` - Pull from remote
-  - `git_status` - Check repository status
-  - `git_log` - View commit history
-  - `git_branch` - Manage branches
-  - `git_clone` - Clone repositories
-  - `git_set_origin` - Configure remote URL
 
-### 🐛 Bug Fixes
-- Fixed agent loop iterations preventing proper completion
-- Improved message history management
+**File Operations**
+- **Undo functionality** - Stack-based operation reversal
+- **Delete files and directories** - Full file/directory manipulation
+- **Move and rename files/directories** - Flexible file organization
 
-### 📦 Downloads
-- **forgecodecli.exe** - Standalone Windows executable (~20.8 MB)
-  - No Python installation required
-  - Ready to use out of the box
+**Git Operations** - Full version control support
+- `git_init` - Initialize repositories
+- `git_add` - Stage files for commit
+- `git_commit` - Commit staged changes
+- `git_push` - Push to remote repository
+- `git_pull` - Pull from remote
+- `git_status` - Check repository status
+- `git_log` - View commit history
+- `git_branch` - Manage branches
+- `git_clone` - Clone repositories
+- `git_set_origin` - Configure remote URL
 
----
-
-## v2.1.0 - March 4, 2026
-
-### ✨ New Features
+**LLM Integration**
 - **Multi-Provider LLM Support**
   - Google Gemini
   - OpenAI (GPT-4, GPT-4 turbo, GPT-3.5)
@@ -37,31 +30,31 @@
 - **Model Selection** - Choose specific models per provider
 - **Auto-install SDKs** - Anthropic SDK installs on demand
 
-### 🐛 Bug Fixes
-- Fixed stale compiled files (.pyc cache) causing old UI to persist
-- Removed build artifacts from git tracking
-
----
-
-## v2.0.0 - March 3, 2026
-
-### ✨ New Features
-- **Undo Functionality** - Reverse the last operation
-- **File Deletion** - Delete files and directories
-- **File Movement** - Move and rename files/directories
-- **Multi-Provider Setup** - Interactive provider selection during init
-- **Conversation Flow** - Agent properly tracks completed actions
+**Agent Improvements**
+- Fixed agent loop iterations preventing proper completion
+- Proper conversation flow with max actions (2 per request)
+- Improved message history management
 
 ### 🔄 Changes
-- Restructured agent loop with action limit (max 2 per request)
+
+- Restructured agent loop with action limit
 - Improved system prompt with better examples
 - Added comprehensive .gitignore
+- Removed build artifacts from git tracking
+
+### 📦 Downloads
+
+- **forgecodecli** on PyPI: `pip install forgecodecli==0.2.0`
+- **forgecodecli.exe** - Standalone Windows executable (~20.8 MB)
+  - No Python installation required
+  - Ready to use out of the box
 
 ---
 
 ## v1.0.0 - February 2026
 
 ### ✨ Features
+
 - **File Operations**
   - Read files
   - List directories
@@ -76,17 +69,17 @@
 
 ## Installation
 
-### Latest Version (v3.0.0)
+### Latest Version (v2.0.0)
 
-**Windows Users**:
-Download `forgecodecli.exe` from [Releases](https://github.com/TiwariSudhanshu/forgecodecli/releases) and run directly.
-
-**Developers**:
+**From PyPI**:
 ```bash
 pip install forgecodecli
 ```
 
-### From Source
+**Windows Users**:
+Download `forgecodecli.exe` from [Releases](https://github.com/TiwariSudhanshu/forgecodecli/releases) and run directly.
+
+**From Source**:
 ```bash
 git clone https://github.com/TiwariSudhanshu/forgecodecli.git
 cd forgecodecli
@@ -96,7 +89,6 @@ pip install -e .
 ---
 
 ## Version Support
-- **v3.0.0** - Current (Recommended)
-- **v2.1.0** - Supported
-- **v2.0.0** - Supported
+
+- **v2.0.0** - Current (Recommended)
 - **v1.0.0** - Legacy (no longer updated)
