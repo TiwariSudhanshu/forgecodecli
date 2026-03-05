@@ -52,3 +52,5 @@ htmlcov/
 # Application
 megha/
 *.spec
+*.html
+xref-*
