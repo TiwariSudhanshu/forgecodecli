@@ -2,16 +2,18 @@
 
 An agentic, file-aware command-line tool that lets you manage and modify your codebase using natural language — powered by LLMs.
 
-It acts as a safe, deterministic AI agent that can read files, create directories, and write code only through explicit tools, not raw hallucination.
+It acts as a safe, deterministic AI agent that can read files, create/delete directories, and write code only through explicit tools, not raw hallucination.
 
 ## Features
 
-- Agentic workflow (LLM decides actions, CLI executes them)
-- File-aware (read, list, create, write files & directories)
-- Secure API key storage (no env vars required after setup)
-- Deterministic and rule-based execution
-- Interactive CLI experience
-- Built to support multiple LLM providers (Gemini first)
+- ✅ **Agentic workflow** - LLM decides actions, CLI executes them safely
+- ✅ **File operations** - Read, list, create, write, delete, move files & directories
+- ✅ **Undo support** - Reverse the last file operation with `undo`
+- ✅ **Multi-provider LLMs** - Gemini, OpenAI (GPT), Anthropic (Claude), Groq
+- ✅ **Model selection** - Choose specific models for each provider
+- ✅ **Secure storage** - API keys stored in system keyring (no env vars)
+- ✅ **Deterministic** - Rule-based execution with validation
+- ✅ **Interactive CLI** - Real-time agent feedback
 
 ## Installation
 
@@ -20,6 +22,14 @@ Requires Python 3.9+
 ```bash
 pip install forgecodecli
 ```
+
+**Optional:** For Anthropic (Claude) support, install with the anthropic extra:
+
+```bash
+pip install forgecodecli[anthropic]
+```
+
+Or install later when prompted during setup.
 
 ## Quick Start
 
@@ -30,8 +40,22 @@ forgecodecli init
 ```
 
 You will be prompted to:
-- Select an LLM provider
-- Enter your API key (stored securely)
+
+1. **Select LLM Provider**
+   ```
+   1) Google Gemini
+   2) OpenAI
+   3) Anthropic (Claude)
+   4) Groq
+   ```
+
+2. **Select Model** (varies by provider)
+   - Gemini: `gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-pro`
+   - OpenAI: `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`
+   - Claude: `claude-3-5-sonnet`, `claude-3-opus`, `claude-3-haiku`
+   - Groq: `llama-3.3-70b`, `mixtral-8x7b`, `gemma2-9b-it`
+
+3. **Enter API Key** (stored securely in system keyring)
 
 ### Start the agent
 
@@ -42,13 +66,15 @@ forgecodecli
 You are now in interactive agent mode. Example commands:
 
 ```
-create a folder src/app and add a main.py file that prints hello
-read the README.md file
-list all files in the src directory
-quit
+create a folder src/app with main.py that prints "Hello World"
+read the config.py file
+list all files in src
+delete old_backup folder
+move test.py to tests/test.py
+undo
 ```
 
-Or press `Ctrl + C` to exit.
+Type `help` for built-in commands, or press `Ctrl + C` to exit.
 
 ## Reset Configuration
 
@@ -68,33 +94,57 @@ forgecodecli reset
 
 1. You enter a natural language command
 2. The LLM decides the next valid action
-3. ForgeCodeCLI executes the action safely
-4. The agent responds with the result
+3. ForgeCodeCLI executes the action with validation
+4. The agent receives feedback and responds
+5. Process repeats until agent provides an answer
 
-The agent is strictly limited to predefined tools, ensuring predictable and safe behavior.
+**Safety mechanisms:**
+- Action limit of 2 per request (prevents infinite loops)
+- Conversation context maintained for agent awareness
+- All operations logged and reversible with `undo`
+- Strict tool validation
 
 ## Supported Actions
 
-- `read_file`
-- `list_files`
-- `create_dir`
-- `write_file`
+The agent can execute these operations:
 
-No action outside these tools is permitted.
+| Action | Description |
+|--------|-------------|
+| `read_file` | Read and display file contents |
+| `list_files` | List files in a directory |
+| `create_dir` | Create new directories |
+| `write_file` | Create and write files |
+| `delete_file` | Delete files permanently |
+| `delete_dir` | Delete directories |
+| `move_file` | Move or rename files |
+| `move_dir` | Move or rename directories |
+| `undo` | Reverse the last operation |
 
-## Status
+All actions are executed safely with validation and error handling.
 
-This project is in active development.
+## Roadmap
 
-**Current version supports:**
-- Gemini LLM
-- Interactive agent mode
+### ✅ v1 (Released)
+- Basic file operations (read, list, create, write)
+- Gemini support
+- Interactive CLI
 
-**Planned features:**
-- Multiple LLM providers
-- Model switching
-- Streaming responses
-- Session memory
+### ✅ v2 (Current)
+- **Undo functionality** - Stack-based operation reversal
+- **Delete & move operations** - Full file/directory manipulation
+- **Multi-provider support** - Gemini, OpenAI, Anthropic, Groq
+- **Model selection** - Choose specific models per provider
+- **Auto-install SDKs** - Anthropic SDK installs on demand
+- **Fixed agent loop** - Proper conversation flow with max actions
+
+### 🚀 v3 (Planned)
+- Copy files/directories
+- Full undo/redo history (not just last operation)
+- File search capabilities
+- Code generation templates
+- Git integration
+- Batch operations
+- Backup/snapshot functionality
 
 ## License
 
